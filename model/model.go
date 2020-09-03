@@ -54,9 +54,11 @@ var CurrentPlayer *Player
 var OpposingPlayer *Player
 var white Player
 var black Player
+var Passes int
 
 //Initiliaze
 func InitGame(boardSize int) {
+	Passes = 0
 	BoardSize = boardSize
 	initBoard()
 	white = createNewPlayer(White)
@@ -306,5 +308,11 @@ func TakeTurn(row int, col int) Result {
 	// Removed captured strings and pieces
 	removeCaptures(OpposingPlayer, CurrentPlayer)
 	changePlayer()
+	Passes = 0
 	return Success	
 }
+
+func TakePass() {
+	Passes++
+	changePlayer()
+} 
