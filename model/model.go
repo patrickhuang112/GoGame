@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"strconv"
 )
 
 type Result int
@@ -96,6 +97,14 @@ func PrintBoard() {
 }
 //Utilities
 
+func printRowCol(row int, col int) {
+	fmt.Print("Row: ")
+	fmt.Println(strconv.Itoa(row))
+	fmt.Print("Col: ")
+	fmt.Println(strconv.Itoa(col))
+	fmt.Println("")
+}
+
 func (color Color) toString() string {
 	if color == White {
 		return "White"
@@ -119,10 +128,36 @@ func PrintBoardAtPos(row int, col int) {
 func PrintCurrentPlayer() {
 	if (*CurrentPlayer).color == White {
 		fmt.Println("White")
+		
 	} else {
 		fmt.Println("Black")
 	}
+	fmt.Println("")
 }
+
+func PrintWhite() {
+	printPlayer(&white)
+}
+
+func PrintBlack() {
+	printPlayer(&black)
+}
+
+func printPlayer(playerPtr *Player) {
+	reps := (*playerPtr).reps
+	fmt.Println("Reps: ")
+	for rp,_ := range reps {
+		fmt.Print("Row: ")
+		fmt.Print(strconv.Itoa(rp.row))
+		fmt.Print("    Col: ")
+		fmt.Println(strconv.Itoa(rp.col))
+	}
+	fmt.Print("Captured: ")
+	fmt.Print(strconv.Itoa((*playerPtr).captured))
+	fmt.Println("")
+	fmt.Println("")
+}
+
 
 func abs(num int) int {
 	if (num < 0) {
@@ -138,7 +173,7 @@ func remove(s []rc, i int) []rc {
 
 func hasLiberties(piece Piece) bool {
 	for _, src := range piece.contains {
-		frees := getAdjacents(src)
+		frees := getEmptyAdjacents(src)
 		if len(frees) != 0 {
 			return true
 		}
@@ -152,13 +187,26 @@ func isInBounds (src rc) bool {
 
 func getAdjacents(src rc) []rc {
 	res := make([]rc, 0)
-	board := GameBoard
 	possible := []rc{rc{0,1}, rc{1,0}, rc{-1,0}, rc{0,-1}}
 	for _,d := range possible {
 		newCol := src.col + d.col 
 		newRow := src.row + d.row
 		newRc := rc{newRow, newCol}	
-		if (isInBounds(newRc) && (board[newRow][newCol]).color == Empty) {
+		if (isInBounds(newRc)) {
+			res = append(res, newRc)
+		}
+	}
+	return res
+}
+
+func getEmptyAdjacents(src rc) []rc {
+	res := make([]rc, 0)
+	possible := []rc{rc{0,1}, rc{1,0}, rc{-1,0}, rc{0,-1}}
+	for _,d := range possible {
+		newCol := src.col + d.col 
+		newRow := src.row + d.row
+		newRc := rc{newRow, newCol}	
+		if (isInBounds(newRc) && GameBoard[newRow][newCol].color == Empty) {
 			res = append(res, newRc)
 		}
 	}
@@ -181,41 +229,22 @@ func isAdjacent(src rc, vis rc) bool {
 
 func combinePieces(playerPtr *Player, a Piece, b Piece) {
 	board := GameBoard
+	
+
+	/*
+	fmt.Println("SRCS")
+	printRowCol(a.src.row, a.src.col)
+	printRowCol(b.src.row, b.src.col)
+	fmt.Println("REPS")
+	printRowCol(a.rep.row, a.rep.col)
+	printRowCol(b.rep.row, b.rep.col)
+	*/
+
+	// They are already combined
+	if (a.rep.row != -1 && a.rep.row == b.rep.row) {
+		return
+	}
 	for a.rep.row >= 0 || b.rep.row >= 0 {
-		if (a.rep.row < 0 && b.rep.row < 0) {
-			aHeight := abs(a.rep.row)
-			bHeight := abs(b.rep.row)
-			newContains := append(a.contains, b.contains...)
-			var repToRemove rc
-			if (aHeight >= bHeight) {
-				a.contains = newContains
-				a.rep = rc{a.rep.row-1, a.rep.col-1}
-				b.contains = make([]rc, 0)
-				b.rep = rc{a.src.row, a.src.col}
-				repToRemove = b.rep	
-			} else {
-				b.contains = newContains
-				b.rep = rc{b.rep.row-1, b.rep.col-1}
-				a.contains = make([]rc, 0)
-				a.rep = rc{b.src.row, b.src.col}
-				repToRemove = a.rep
-			}
-			board[a.src.row][a.src.col] = a	
-			board[b.src.row][b.src.col] = b		
-			GameBoard = board
-			PrintBoardAtPos(a.src.row, a.src.col)
-			PrintBoardAtPos(b.src.row, b.src.col)
-			// Removing the reps from the player
-			player := *playerPtr
-			
-			if  _,found := player.reps[repToRemove]; found {
-				// Remove the smaller merged rep from the player
-				delete(player.reps, repToRemove)	
-			}
-			
-			*playerPtr = player
-			return	
-		} 
 		if(a.rep.row >= 0) {
 			a = board[a.rep.row][a.rep.col]
 		} 
@@ -223,12 +252,46 @@ func combinePieces(playerPtr *Player, a Piece, b Piece) {
 			b = board[b.rep.row][b.rep.col]
 		}
 	}
+
+	aHeight := abs(a.rep.row)
+	bHeight := abs(b.rep.row)
+	newContains := append(a.contains, b.contains...)
+	var repToRemove rc
+	var repToAdd rc
+	if (aHeight >= bHeight) {
+		a.contains = newContains
+		a.rep = rc{a.rep.row-1, a.rep.col-1}
+		b.contains = make([]rc, 0)
+		b.rep = rc{a.src.row, a.src.col}
+		repToRemove = b.src	
+		repToAdd = a.src
+	} else {
+		b.contains = newContains
+		b.rep = rc{b.rep.row-1, b.rep.col-1}
+		a.contains = make([]rc, 0)
+		a.rep = rc{b.src.row, b.src.col}
+		repToRemove = a.src
+		repToAdd = b.src
+	}
+
+	board[a.src.row][a.src.col] = a	
+	board[b.src.row][b.src.col] = b		
+	GameBoard = board
+
+	// Removing the reps from the player
+	player := *playerPtr
+	player.reps[repToAdd] = true
+	if  _,found := player.reps[repToRemove]; found {
+		// Remove the smaller merged rep from the player
+		delete(player.reps, repToRemove)	
+	}
+	// Update player
+	*playerPtr = player
 }
 
 
 func placePiece(playerPtr *Player, row int, col int) Result {
-	board := GameBoard	
-	if (board[row][col]).color != Empty {
+	if (GameBoard[row][col]).color != Empty {
 		return Failure
 	} else {
 		player := *playerPtr
@@ -236,20 +299,26 @@ func placePiece(playerPtr *Player, row int, col int) Result {
 		// Add to board
 		newColor := player.color
 		newPiece := createNewPiece(newColor, newRc)	
-		board[row][col] = newPiece
+		GameBoard[row][col] = newPiece
 		adjacents := getAdjacents(newRc)
-		curRep := newPiece.rep
+		combined := false
+		
+		// Combining pieces if needed
 		for _, adj := range adjacents {
-			if board[adj.row][adj.col].color == newColor {
-				adjPiece := board[adj.row][adj.col]	
-				if(curRep != adjPiece.rep) {
-					combinePieces(playerPtr, adjPiece, newPiece)	
-					newPiece = board[row][col]
-				}	
+			if GameBoard[adj.row][adj.col].color == newColor {
+				adjPiece := GameBoard[adj.row][adj.col]	
+				combinePieces(playerPtr, adjPiece, newPiece)
+				newPiece = GameBoard[row][col]
+				combined = true
 			}	
+		}
+			
+		if !combined {
+			player.reps[newRc] = true
 		}
 		// Add to player gameString
 		*playerPtr = player
+		
 		return Success
 	}
 }
