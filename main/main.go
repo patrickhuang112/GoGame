@@ -44,4 +44,7 @@ func main() {
 			}
 		}
 	}
+	winner := model.EndGame()
+	fmt.Print(winner.ToString())
+	fmt.Println(" is the winner!")
 }

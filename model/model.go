@@ -41,10 +41,6 @@ type Piece struct {
 	contains []rc
 }
 
-func createEmptyPiece() Piece {
-	return Piece{color : Empty}
-}
-
 func createNewPiece(color Color, src rc) Piece {
 	return Piece{color, src, rc{-1,-1}, []rc{src}}
 }
@@ -53,6 +49,7 @@ var BoardSize int
 var GameBoard [][]Piece
 var CurrentPlayer *Player
 var OpposingPlayer *Player
+var EmptyPlayer *Player
 var white Player
 var black Player
 var Passes int
@@ -64,6 +61,8 @@ func InitGame(boardSize int) {
 	initBoard()
 	white = createNewPlayer(White)
 	black = createNewPlayer(Black)
+	emptyPlr := createNewPlayer(Empty)
+	EmptyPlayer = &emptyPlr
 	CurrentPlayer = &black	
 	OpposingPlayer = &white
 }
@@ -73,7 +72,7 @@ func initBoard() {
 	for i := 0; i < BoardSize; i++ {
 		board[i] = make([]Piece, BoardSize)
 		for j := 0; j < BoardSize; j++ {
-			board[i][j] = createEmptyPiece()
+			board[i][j] = createNewPiece(Empty, rc{i,j})
 		}
 	} 
 	GameBoard = board
@@ -97,6 +96,14 @@ func PrintBoard() {
 }
 //Utilities
 
+func copyRepMap(reps map[rc]bool) map[rc]bool{
+	newMap := make(map[rc]bool)
+	for src,_ := range reps {
+		newMap[src] = true
+	}
+	return newMap
+}
+
 func printRowCol(row int, col int) {
 	fmt.Print("Row: ")
 	fmt.Println(strconv.Itoa(row))
@@ -105,12 +112,13 @@ func printRowCol(row int, col int) {
 	fmt.Println("")
 }
 
-func (color Color) toString() string {
+func (color Color) ToString() string {
 	if color == White {
 		return "White"
-	} else {
+	} else if color == Black{
 		return "Black"
 	}
+	return "No one"
 }
 
 func PrintBoardAtPos(row int, col int) {
@@ -123,6 +131,9 @@ func PrintBoardAtPos(row int, col int) {
 	} else {
 		fmt.Print("B")
 	}	
+	fmt.Println("")
+	fmt.Println("Rep :")
+	printRowCol(piece.rep.row, piece.rep.col)
 }
 
 func PrintCurrentPlayer() {
@@ -169,6 +180,22 @@ func abs(num int) int {
 
 func remove(s []rc, i int) []rc {
 	return append(s[:i], s[i+1:]...)
+}
+
+func territoryForWhichColor(piece Piece) Color {
+	color := Empty
+	for _, src := range piece.contains {
+		adjs := getAdjacents(src)
+		for _, adj := range adjs {
+			adjPiece := GameBoard[adj.row][adj.col]
+			if (color == White && adjPiece.color == Black) || 
+			   (color == Black && adjPiece.color == White) {
+				return Empty
+			}
+			color = adjPiece.color	
+		}
+	}
+	return color
 }
 
 func hasLiberties(piece Piece) bool {
@@ -223,14 +250,70 @@ func isAdjacent(src rc, vis rc) bool {
 
 
 
+func EndGame() Color {
+	board := make([][]Piece, BoardSize)	
+	for i := 0; i < BoardSize; i++ {
+		board[i] = make([]Piece, BoardSize)
+		for j := 0; j < BoardSize; j++ {
+			board[i][j] = GameBoard[i][j]
+		}
+	}
 
+	for i := 0; i < BoardSize; i++ {
+		for j := 0; j < BoardSize; j++ {
+			piece := GameBoard[i][j]
+			// fmt.Println("We are here: ")
+			// printRowCol(i,j)
+			if piece.color == Empty {
+				src := rc{i,j}
+				adjacents := getEmptyAdjacents(src)
+				combined := false
+				
+				for _,adj := range adjacents {
+					
+					adjPiece := GameBoard[adj.row][adj.col]	
+					// printRowCol(adjPiece.rep.row, adjPiece.rep.col)
+					// printRowCol(piece.rep.row, piece.rep.col)
+					combinePieces(EmptyPlayer, adjPiece, piece)
+					piece = GameBoard[src.row][src.col]
+					combined = true	
+				}
 
+				if !combined {
+					(*EmptyPlayer).reps[src] = true
+				}
+			}
+		}
+	}
+	countTerritory(CurrentPlayer)
+	countTerritory(OpposingPlayer)
+
+	if white.captured > black.captured {
+		return White
+	}
+	if black.captured > white.captured {
+		return Black
+	}
+	return Empty
+}
+
+func countTerritory(playerPtr *Player) {
+	player := *playerPtr
+	empty := *EmptyPlayer
+	for src,_ := range empty.reps {
+		piece := GameBoard[src.row][src.col]
+		color := territoryForWhichColor(piece)
+		if color == player.color {
+			player.captured += len(piece.contains)
+		} 
+	}
+	*playerPtr = player
+}
 
 
 func combinePieces(playerPtr *Player, a Piece, b Piece) {
 	board := GameBoard
 	
-
 	/*
 	fmt.Println("SRCS")
 	printRowCol(a.src.row, a.src.col)
@@ -240,19 +323,21 @@ func combinePieces(playerPtr *Player, a Piece, b Piece) {
 	printRowCol(b.rep.row, b.rep.col)
 	*/
 
+	for a.rep.row >= 0 || b.rep.row >= 0 {
+		if (a.rep.row >= 0) {
+			a = board[a.rep.row][a.rep.col]
+		} 
+		if (b.rep.row >= 0) {
+			b = board[b.rep.row][b.rep.col]
+		}
+	}
+	
 	// They are already combined
 	if (a.rep.row != -1 && a.rep.row == b.rep.row) {
 		return
 	}
-	for a.rep.row >= 0 || b.rep.row >= 0 {
-		if(a.rep.row >= 0) {
-			a = board[a.rep.row][a.rep.col]
-		} 
-		if(b.rep.row >= 0) {
-			b = board[b.rep.row][b.rep.col]
-		}
-	}
-
+	//printRowCol(a.rep.row, a.rep.col)
+	//printRowCol(b.rep.row, b.rep.col)
 	aHeight := abs(a.rep.row)
 	bHeight := abs(b.rep.row)
 	newContains := append(a.contains, b.contains...)
@@ -326,7 +411,7 @@ func placePiece(playerPtr *Player, row int, col int) Result {
 func removePieceListFromBoard(pieces []rc) {
 	board := GameBoard
 	for _,src := range pieces {
-		board[src.row][src.col] = createEmptyPiece()
+		board[src.row][src.col] = createNewPiece(Empty, src)
 	}
 	GameBoard = board
 }
@@ -370,12 +455,28 @@ func changePlayer() {
 }
 
 func TakeTurn(row int, col int) Result {
+	// Have to use this to copy a map (they are reference types, not primitive)
+	
+	oldRepMap := copyRepMap((*CurrentPlayer).reps)
+
 	// Place a piece and update gameboard
 	if placePiece(CurrentPlayer, row, col) == Failure {
 		return Failure
 	}
+
 	// Removed captured strings and pieces
 	removeCaptures(OpposingPlayer, CurrentPlayer)
+
+	// If the piece we just put down at row, col has no liberties after 
+	// removing opposing player captured strings, that means the move is invalid,
+	// so we remove the piece in the gameboard and revert the player to what it
+	// was like before the move was made
+	if !hasLiberties(GameBoard[row][col]) {
+		GameBoard[row][col] = createNewPiece(Empty, rc{row,col})
+		(*CurrentPlayer).reps = oldRepMap
+		return Failure
+	}
+
 	changePlayer()
 	Passes = 0
 	return Success	
