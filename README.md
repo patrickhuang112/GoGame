@@ -4,12 +4,15 @@ The board game Go, currently only in console form, but with plans to implement a
 ## How to Build
 First navigate to the main directory
 > cd main
+>
 > go build
+  
 This creates a clickable executable in the main folder
 
 ## How to Run
 To run the project directly without building
 > cd main
+>
 > go run main.go
 
 ### How to Play:
