@@ -1,4 +1,4 @@
-# GoWithBros
+# Golanged
 The board game Go, currently only in console form, but with plans to implement a GUI in Go using Fyne.io
 
 ## How to Build
