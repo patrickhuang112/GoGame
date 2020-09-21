@@ -121,7 +121,7 @@ func (color Color) ToString() string {
 	return "No one"
 }
 
-func PrintBoardAtPos(row int, col int) {
+func printBoardAtPos(row int, col int) {
 	board := GameBoard
 	piece := board[row][col]
 	if piece.color == Empty {
@@ -158,7 +158,7 @@ func printPlayer(playerPtr *Player) {
 	reps := (*playerPtr).reps
 	fmt.Print("Color: ")
 	fmt.Println((*playerPtr).color.ToString())
-	fmt.Println("Reps: ")
+	fmt.Println("Stringheads: ")
 	for rp,_ := range reps {
 		fmt.Print("Row: ")
 		fmt.Print(strconv.Itoa(rp.row))
@@ -317,15 +317,6 @@ func countTerritory(playerPtr *Player) {
 
 func combinePieces(playerPtr *Player, a Piece, b Piece) {
 	board := GameBoard
-	
-	/*
-	fmt.Println("SRCS")
-	printRowCol(a.src.row, a.src.col)
-	printRowCol(b.src.row, b.src.col)
-	fmt.Println("REPS")
-	printRowCol(a.rep.row, a.rep.col)
-	printRowCol(b.rep.row, b.rep.col)
-	*/
 
 	for a.rep.row >= 0 || b.rep.row >= 0 {
 		if (a.rep.row >= 0) {
@@ -445,10 +436,6 @@ func removeCaptures(remPlayerPtr *Player, opPlayerPtr *Player) {
 
 
 
-
-
-
-
 func changePlayer() {
 	if (*CurrentPlayer).color == White {
 		CurrentPlayer = &black
@@ -476,8 +463,6 @@ func TakeTurn(row int, col int) Result {
 	// removing opposing player captured strings, that means the move is invalid,
 	// so we remove the piece in the gameboard and revert the player to what it
 	// was like before the move was made
-	fmt.Println(GameBoard[row][col].color.ToString())
-	PrintBoardAtPos(row, col)
 	if !hasLiberties(GameBoard[row][col]) {
 		GameBoard[row][col] = createNewPiece(Empty, rc{row,col})
 		(*CurrentPlayer).reps = oldRepMap
